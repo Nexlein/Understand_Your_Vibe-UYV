@@ -15,7 +15,7 @@ set -euo pipefail
 
 WEB_PORT="${WEB_PORT:-3000}"
 AI_PORT="${AI_PORT:-8000}"
-NGROK_DOMAIN="${NGROK_DOMAIN:-your-team.ngrok-free.app}"
+NGROK_DOMAIN="${NGROK_DOMAIN:-handball-fiddle-chooser.ngrok-free.dev}"
 
 # Couleurs (avec fallback si terminal non-couleur)
 if [ -t 1 ]; then
@@ -73,12 +73,12 @@ if [ ! -d "web" ] || [ ! -d "ai" ]; then
   exit 1
 fi
 
-# Charger .env.local si présent (pratique pour AI_SERVICE_URL etc.)
-if [ -f ".env.local" ]; then
-  log "Chargement de .env.local..."
+# Charger web/.env.local si présent
+if [ -f "web/.env.local" ]; then
+  log "Chargement de web/.env.local..."
   set -a
   # shellcheck disable=SC1091
-  source .env.local
+  source web/.env.local
   set +a
 fi
 
