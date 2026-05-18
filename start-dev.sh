@@ -82,11 +82,17 @@ if [ -f "web/.env.local" ]; then
   set +a
 fi
 
-# Vérifier le venv Python
-if [ ! -d "ai/.venv" ]; then
-  warn "Le venv Python n'existe pas (ai/.venv). Création..."
-  (cd ai && python3 -m venv .venv && source .venv/bin/activate && pip install -e .)
-  ok "venv créé et dépendances installées"
+# Vérifier le venv Python (seulement si le service AI est prêt)
+AI_READY=0
+if [ -f "ai/main.py" ]; then
+  AI_READY=1
+  if [ ! -d "ai/.venv" ]; then
+    warn "Le venv Python n'existe pas (ai/.venv). Création..."
+    (cd ai && python3 -m venv .venv && source .venv/bin/activate && pip install -e .)
+    ok "venv créé et dépendances installées"
+  fi
+else
+  warn "ai/main.py absent — service AI ignoré (Phase 1 only)"
 fi
 
 # Vérifier node_modules
@@ -132,19 +138,21 @@ if [ "$WITH_TUNNEL" -eq 1 ]; then
 fi
 log ""
 
-# 1) Service Python (FastAPI)
-log "Lancement du service AI (FastAPI) sur le port $AI_PORT..."
-(
-  cd ai
-  # shellcheck disable=SC1091
-  source .venv/bin/activate
-  exec uvicorn main:app \
-    --reload \
-    --port "$AI_PORT" \
-    --reload-include "*.md" \
-    --log-level info 2>&1 | sed "s/^/${BLUE}[ai]${RESET}    /"
-) &
-PIDS+=($!)
+# 1) Service Python (FastAPI) — seulement si prêt
+if [ "$AI_READY" -eq 1 ]; then
+  log "Lancement du service AI (FastAPI) sur le port $AI_PORT..."
+  (
+    cd ai
+    # shellcheck disable=SC1091
+    source .venv/bin/activate
+    exec uvicorn main:app \
+      --reload \
+      --port "$AI_PORT" \
+      --reload-include "*.md" \
+      --log-level info 2>&1 | sed "s/^/${BLUE}[ai]${RESET}    /"
+  ) &
+  PIDS+=($!)
+fi
 
 # 2) Next.js (web)
 log "Lancement de Next.js sur le port $WEB_PORT..."
