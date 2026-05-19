@@ -49,9 +49,9 @@ export default async function QuizPage({
         }}
       >
         <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⚖️</p>
-        <h2 style={{ color: "var(--ct-ink)", marginBottom: "0.5rem" }}>Procès en cours…</h2>
+        <h2 style={{ color: "var(--ct-ink)", marginBottom: "0.5rem" }}>Trial in progress…</h2>
         <p style={{ color: "var(--ct-muted)" }}>
-          Les agents IA analysent cette PR. Rafraîchis dans quelques instants.
+          AI agents are analyzing this PR. Refresh in a few moments.
         </p>
       </div>
     );
@@ -125,11 +125,11 @@ export default async function QuizPage({
         }}
       >
         <h2 style={{ marginBottom: "0.5rem", fontSize: "1.375rem" }}>
-          📋 Prouve ta compréhension
+          📋 Prove your understanding
         </h2>
         <p style={{ color: "var(--ct-muted)", marginBottom: "1.75rem", fontSize: "0.9375rem" }}>
-          Réponds aux {questions.items.length} questions ci-dessous.
-          Un score ≥ 70/100 débloque le merge.
+          Answer the {questions.items.length} questions below.
+          A score ≥ 70/100 unlocks the merge.
         </p>
         <QuizForm
           sessionId={id}

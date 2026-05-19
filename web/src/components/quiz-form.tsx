@@ -50,12 +50,12 @@ export function QuizForm({
       try {
         data = await res.json();
       } catch {
-        throw new Error(`Réponse non-JSON du serveur (HTTP ${res.status})`);
+        throw new Error(`Non-JSON response from server (HTTP ${res.status})`);
       }
 
       if (!res.ok) {
         const errData = data as { error?: string };
-        setError(errData.error ?? `Erreur ${res.status}`);
+        setError(errData.error ?? `Error ${res.status}`);
         return;
       }
 
@@ -69,7 +69,7 @@ export function QuizForm({
       setError(
         err instanceof Error
           ? err.message
-          : "Erreur réseau — vérifie que le service AI tourne (port 8000)"
+          : "Network error — make sure the AI service is running (port 8000)"
       );
     } finally {
       setLoading(false);
@@ -78,7 +78,6 @@ export function QuizForm({
 
   return (
     <div>
-      {/* Résultat de la dernière tentative — toujours visible */}
       {latestResult && (
         <div
           style={{
@@ -91,12 +90,12 @@ export function QuizForm({
         >
           <h3 style={{ color: latestResult.passed ? "#16a34a" : "#dc2626", marginTop: 0 }}>
             {latestResult.passed
-              ? "✓ Compréhension vérifiée"
-              : `✗ Score insuffisant — tentative ${attemptCount}`}
+              ? "✓ Understanding verified"
+              : `✗ Insufficient score — attempt ${attemptCount}`}
           </h3>
           <p>
-            Score : <strong>{latestResult.understanding_score}/100</strong>
-            {latestResult.passed ? " — merge débloqué !" : " — 70/100 requis"}
+            Score: <strong>{latestResult.understanding_score}/100</strong>
+            {latestResult.passed ? " — merge unlocked!" : " — 70/100 required"}
           </p>
 
           {Array.isArray(latestResult.per_question) &&
@@ -111,12 +110,12 @@ export function QuizForm({
                 }}
               >
                 <strong>
-                  Q{q.question_id} : {q.score}/100
+                  Q{q.question_id}: {q.score}/100
                 </strong>
                 <p style={{ margin: "0.25rem 0" }}>{q.feedback}</p>
                 {q.missing_concepts.length > 0 && (
                   <p style={{ color: "#92400e", fontSize: "0.85rem", margin: 0 }}>
-                    Concepts manquants : {q.missing_concepts.join(", ")}
+                    Missing concepts: {q.missing_concepts.join(", ")}
                   </p>
                 )}
               </div>
@@ -124,7 +123,6 @@ export function QuizForm({
         </div>
       )}
 
-      {/* Formulaire — visible tant que non réussi */}
       {!passed && (
         <>
           {latestResult && (
@@ -138,8 +136,8 @@ export function QuizForm({
                 color: "#92400e",
               }}
             >
-              <strong>Nouvelle tentative</strong> — relis le feedback ci-dessus, corrige tes réponses et réessaie.
-              Le détail de chaque tentative est aussi posté en commentaire sur la PR.
+              <strong>New attempt</strong> — re-read the feedback above, fix your answers and try again.
+              The details of each attempt are also posted as a comment on the PR.
             </div>
           )}
 
@@ -150,7 +148,7 @@ export function QuizForm({
                 style={{ display: "block", marginBottom: "0.375rem" }}
               >
                 <strong style={{ color: "var(--ct-ink, #1a1a2e)", fontSize: "0.9375rem" }}>
-                  Q{i + 1} : {q.text}
+                  Q{i + 1}: {q.text}
                 </strong>
               </label>
               <p
@@ -161,7 +159,7 @@ export function QuizForm({
                   fontStyle: "italic",
                 }}
               >
-                Topic : {q.topic}
+                Topic: {q.topic}
               </p>
               <textarea
                 id={`q-${i}`}
@@ -172,7 +170,7 @@ export function QuizForm({
                   setAnswers(next);
                 }}
                 rows={5}
-                placeholder="Ta réponse..."
+                placeholder="Your answer..."
                 disabled={loading}
                 style={{
                   width: "100%",
@@ -203,7 +201,7 @@ export function QuizForm({
                 color: "#dc2626",
               }}
             >
-              <strong>Erreur : </strong>
+              <strong>Error: </strong>
               {error}
             </div>
           )}
@@ -215,10 +213,10 @@ export function QuizForm({
             disabled={loading || answers.every((a) => a.trim() === "")}
           >
             {loading
-              ? "Évaluation en cours…"
+              ? "Evaluating…"
               : latestResult
-                ? "Soumettre — nouvelle tentative"
-                : "Soumettre mes réponses"}
+                ? "Submit — new attempt"
+                : "Submit my answers"}
           </button>
         </>
       )}

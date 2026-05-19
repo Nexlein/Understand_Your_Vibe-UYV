@@ -6,6 +6,7 @@ export const StrengthSchema = z.object({
   title: z.string(),
   explanation: z.string(),
   line_references: z.array(z.string()),
+  file_paths: z.array(z.string()),
 });
 
 export const DefenseOutputSchema = z.object({
@@ -21,6 +22,7 @@ export const ConcernSchema = z.object({
   severity: z.enum(["low", "medium", "high", "critical"]),
   explanation: z.string(),
   line_references: z.array(z.string()),
+  file_paths: z.array(z.string()),
 });
 
 export const ProsecutionOutputSchema = z.object({
