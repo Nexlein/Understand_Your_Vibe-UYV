@@ -174,6 +174,7 @@ async function runTrialFlow(params: {
         prosecution: JSON.stringify(trial.prosecution),
         questions: JSON.stringify(trial.questions),
         verdict: JSON.stringify(trial.verdict),
+        diff,
         pullRequestId: prDbId,
       },
     });

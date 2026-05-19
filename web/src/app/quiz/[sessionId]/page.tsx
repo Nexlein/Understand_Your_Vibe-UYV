@@ -11,6 +11,7 @@ import {
 import { QuizForm } from "@/components/quiz-form";
 import { VerdictCard } from "@/components/verdict-card";
 import { PerspectiveColumn } from "@/components/perspective-column";
+import { DiffViewer } from "@/components/diff-viewer";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,12 @@ export default async function QuizPage({
           prosecution_summary={prosecution.prosecution_summary}
         />
       </div>
+
+      {/* Diff */}
+      <DiffViewer
+        diff={trial.diff}
+        prUrl={`https://github.com/${pr.repoFullName}/pull/${pr.prNumber}/files`}
+      />
 
       {/* Quiz */}
       <div
