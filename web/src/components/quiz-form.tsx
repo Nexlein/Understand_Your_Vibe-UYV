@@ -144,13 +144,23 @@ export function QuizForm({
           )}
 
           {questions.map((q, i) => (
-            <div key={q.id} style={{ marginBottom: "1.5rem" }}>
-              <label htmlFor={`q-${i}`}>
-                <strong>
-                  Q{i + 1}: {q.text}
+            <div key={q.id} style={{ marginBottom: "1.75rem" }}>
+              <label
+                htmlFor={`q-${i}`}
+                style={{ display: "block", marginBottom: "0.375rem" }}
+              >
+                <strong style={{ color: "var(--ct-ink, #1a1a2e)", fontSize: "0.9375rem" }}>
+                  Q{i + 1} : {q.text}
                 </strong>
               </label>
-              <p style={{ color: "#6b7280", fontSize: "0.875rem", margin: "0.25rem 0" }}>
+              <p
+                style={{
+                  color: "var(--ct-muted, #6b7280)",
+                  fontSize: "0.8rem",
+                  margin: "0 0 0.5rem",
+                  fontStyle: "italic",
+                }}
+              >
                 Topic : {q.topic}
               </p>
               <textarea
@@ -161,10 +171,23 @@ export function QuizForm({
                   next[i] = e.target.value;
                   setAnswers(next);
                 }}
-                rows={4}
+                rows={5}
                 placeholder="Ta réponse..."
                 disabled={loading}
-                style={{ width: "100%", marginTop: "0.25rem", boxSizing: "border-box" }}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "0.75rem",
+                  border: "1px solid #d1c9bb",
+                  borderRadius: "6px",
+                  background: "#fff",
+                  fontSize: "0.9rem",
+                  fontFamily: "inherit",
+                  lineHeight: 1.6,
+                  resize: "vertical",
+                  color: "var(--ct-ink, #1a1a2e)",
+                  opacity: loading ? 0.6 : 1,
+                }}
               />
             </div>
           ))}
@@ -187,6 +210,7 @@ export function QuizForm({
 
           <button
             type="button"
+            className="ct-btn"
             onClick={() => void submit()}
             disabled={loading || answers.every((a) => a.trim() === "")}
           >

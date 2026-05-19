@@ -9,6 +9,8 @@ import {
   VerdictOutputSchema,
 } from "@/lib/schemas";
 import { QuizForm } from "@/components/quiz-form";
+import { VerdictCard } from "@/components/verdict-card";
+import { PerspectiveColumn } from "@/components/perspective-column";
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +37,23 @@ export default async function QuizPage({
   const trial = session.pullRequest.trials[0];
   if (!trial) {
     return (
-      <main style={{ padding: "2rem" }}>
-        <h1>Trial in progress...</h1>
-        <p>The AI is analyzing this PR. Refresh in a few moments.</p>
-      </main>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: 1,
+          padding: "4rem 2rem",
+          textAlign: "center",
+        }}
+      >
+        <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⚖️</p>
+        <h2 style={{ color: "var(--ct-ink)", marginBottom: "0.5rem" }}>Procès en cours…</h2>
+        <p style={{ color: "var(--ct-muted)" }}>
+          Les agents IA analysent cette PR. Rafraîchis dans quelques instants.
+        </p>
+      </div>
     );
   }
 
@@ -54,86 +69,68 @@ export default async function QuizPage({
   const pr = session.pullRequest;
 
   return (
-    <main style={{ padding: "2rem", maxWidth: "1200px", margin: "0 auto" }}>
-      <h1>⚖️ Code Tribunal</h1>
-      <h2>{pr.title}</h2>
-      <p>
-        {pr.repoFullName} — PR #{pr.prNumber} by @{pr.authorLogin}
+    <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "2rem" }}>
+      {/* Header */}
+      <div style={{ marginBottom: "0.25rem" }}>
+        <a
+          href="/dashboard"
+          style={{
+            fontSize: "0.8rem",
+            color: "var(--ct-muted)",
+            textDecoration: "none",
+          }}
+        >
+          ← Dashboard
+        </a>
+      </div>
+      <h1 style={{ marginBottom: "0.25rem", fontSize: "1.75rem" }}>⚖️ Code Tribunal</h1>
+      <p style={{ color: "var(--ct-muted)", marginBottom: "0", fontSize: "0.9375rem" }}>
+        <strong style={{ color: "var(--ct-ink)" }}>{pr.title}</strong>
+        &nbsp;·&nbsp;{pr.repoFullName}&nbsp;·&nbsp;PR #{pr.prNumber}&nbsp;·&nbsp;
+        <a
+          href={`https://github.com/${pr.repoFullName}/pull/${pr.prNumber}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--ct-navy)" }}
+        >
+          @{pr.authorLogin} ↗
+        </a>
       </p>
 
+      {/* Verdict */}
+      <VerdictCard verdict={verdict} />
+
+      {/* Defense + Prosecution */}
+      <div style={{ display: "flex", gap: "1.25rem", marginTop: "0.5rem" }}>
+        <PerspectiveColumn
+          variant="defense"
+          design_intent={defense.design_intent}
+          strengths={defense.strengths}
+          defense_summary={defense.defense_summary}
+        />
+        <PerspectiveColumn
+          variant="prosecution"
+          concerns={prosecution.concerns}
+          attack_vectors={prosecution.attack_vectors}
+          prosecution_summary={prosecution.prosecution_summary}
+        />
+      </div>
+
+      {/* Quiz */}
       <div
         style={{
-          background: "#f9f5eb",
-          border: "1px solid #d1b96a",
-          borderRadius: "8px",
-          padding: "1rem",
-          margin: "1rem 0",
+          marginTop: "2.5rem",
+          paddingTop: "2rem",
+          borderTop: "1px solid #e2d9c8",
         }}
       >
-        <strong>Verdict:</strong> {verdict.recommendation} — Risk {verdict.risk_score}/10
-        <p>{verdict.summary}</p>
-      </div>
-
-      <div style={{ display: "flex", gap: "1.5rem", marginTop: "1.5rem" }}>
-        <div
-          style={{
-            flex: 1,
-            background: "#e8edf8",
-            border: "1px solid #6b82c2",
-            borderRadius: "8px",
-            padding: "1rem",
-          }}
-        >
-          <h3>🛡️ Defense</h3>
-          <p style={{ fontStyle: "italic" }}>{defense.design_intent}</p>
-          {defense.strengths.map((s, i) => (
-            <div key={i} style={{ marginTop: "0.75rem" }}>
-              <strong>{s.title}</strong>
-              <p>{s.explanation}</p>
-              {s.line_references.length > 0 && (
-                <p style={{ color: "#6b7280", fontSize: "0.8rem" }}>
-                  {s.line_references.join(", ")}
-                </p>
-              )}
-            </div>
-          ))}
-          <p style={{ marginTop: "1rem", fontStyle: "italic", color: "#374151" }}>
-            {defense.defense_summary}
-          </p>
-        </div>
-
-        <div
-          style={{
-            flex: 1,
-            background: "#f8e8e8",
-            border: "1px solid #c26b6b",
-            borderRadius: "8px",
-            padding: "1rem",
-          }}
-        >
-          <h3>⚔️ Prosecution</h3>
-          {prosecution.concerns.map((c, i) => (
-            <div key={i} style={{ marginTop: "0.75rem" }}>
-              <strong>
-                [{c.severity.toUpperCase()}] {c.title}
-              </strong>
-              <p>{c.explanation}</p>
-              {c.line_references.length > 0 && (
-                <p style={{ color: "#6b7280", fontSize: "0.8rem" }}>
-                  {c.line_references.join(", ")}
-                </p>
-              )}
-            </div>
-          ))}
-          <p style={{ marginTop: "1rem", fontStyle: "italic", color: "#374151" }}>
-            {prosecution.prosecution_summary}
-          </p>
-        </div>
-      </div>
-
-      <div style={{ marginTop: "2rem" }}>
-        <h3>📋 Prove Your Understanding</h3>
-        <p>Answer all questions correctly (≥ 70/100) to unlock the merge button.</p>
+        <h2 style={{ marginBottom: "0.5rem", fontSize: "1.375rem" }}>
+          📋 Prouve ta compréhension
+        </h2>
+        <p style={{ color: "var(--ct-muted)", marginBottom: "1.75rem", fontSize: "0.9375rem" }}>
+          Réponds aux {questions.items.length} questions ci-dessous.
+          Un score ≥ 70/100 débloque le merge.
+        </p>
         <QuizForm
           sessionId={id}
           questions={questions.items}
@@ -142,6 +139,6 @@ export default async function QuizPage({
           initialPerQuestion={initialPerQuestion}
         />
       </div>
-    </main>
+    </div>
   );
 }
