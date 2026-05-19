@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 # --- Defense ---
 
+
 class Strength(BaseModel):
     title: str
     explanation: str
@@ -17,6 +18,7 @@ class DefenseOutput(BaseModel):
 
 
 # --- Prosecution ---
+
 
 class Concern(BaseModel):
     title: str
@@ -33,6 +35,7 @@ class ProsecutionOutput(BaseModel):
 
 # --- Interrogator ---
 
+
 class Question(BaseModel):
     id: str
     text: str
@@ -46,6 +49,7 @@ class QuestionsOutput(BaseModel):
 
 # --- Judge ---
 
+
 class VerdictOutput(BaseModel):
     risk_score: float
     recommendation: Literal["approve", "request_changes", "needs_understanding_proof"]
@@ -53,6 +57,7 @@ class VerdictOutput(BaseModel):
 
 
 # --- Evaluator ---
+
 
 class PerQuestionScore(BaseModel):
     question_id: str
@@ -62,6 +67,7 @@ class PerQuestionScore(BaseModel):
 
 
 # --- API contracts ---
+
 
 class TrialRequest(BaseModel):
     diff: str

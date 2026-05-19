@@ -43,7 +43,9 @@ async def run_trial(request: TrialRequest) -> TrialResponse:
     )
     errors = [r for r in results if isinstance(r, Exception)]
     if errors:
-        raise HTTPException(status_code=502, detail=f"Agent error: {errors[0]}") from errors[0]
+        raise HTTPException(
+            status_code=502, detail=f"Agent error: {errors[0]}"
+        ) from errors[0]
     defense, prosecution, questions = results  # type: ignore[misc]
 
     try:

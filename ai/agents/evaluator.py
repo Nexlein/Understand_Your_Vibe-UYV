@@ -4,7 +4,9 @@ from llm import get_client, MODELS
 from schemas import EvaluateResponse, QuestionRef
 
 
-async def run_evaluator(questions: list[QuestionRef], answers: list[str]) -> EvaluateResponse:
+async def run_evaluator(
+    questions: list[QuestionRef], answers: list[str]
+) -> EvaluateResponse:
     prompt = (Path(__file__).parent.parent / "prompts" / "evaluator.md").read_text()
 
     qa_pairs = "\n\n".join(

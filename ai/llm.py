@@ -17,9 +17,9 @@ def get_client() -> AsyncOpenAI:
 
 
 class MODELS:
-    INTERROGATOR = "gpt-5.1-codex"
-    DEFENSE = "gpt-5.1"
-    PROSECUTION = "gpt-5.1-codex"
-    JUDGE = "gpt-5.1"
-    EVALUATOR = "gpt-5.1-mini"
+    INTERROGATOR = "gpt-5-chat-latest"
+    DEFENSE = "gpt-5-chat-latest"
+    PROSECUTION = "gpt-5-chat-latest"
+    JUDGE = "gpt-5-chat-latest"
+    EVALUATOR = "gpt-4.1-mini"
     DEV = "gpt-4.1-mini"

@@ -3,178 +3,235 @@
 # start-dev.sh — Lance toute la stack en dev
 # =============================================================================
 # Usage :
-#   ./start-dev.sh           Lance web + ai (par défaut, pour les devs)
-#   ./start-dev.sh --tunnel  Lance web + ai + ngrok (tech lead uniquement)
+#   ./start-dev.sh           Lance web + ai
+#   ./start-dev.sh --tunnel  Lance web + ai + ngrok (tech lead)
+#   ./start-dev.sh --seed    Lance web + ai + insère des données de test
 #
 # Ctrl+C arrête proprement tous les processus.
 # =============================================================================
 
 set -euo pipefail
 
-# ---------------------------- Configuration ----------------------------------
-
+# ── Configuration ─────────────────────────────────────────────────────────────
 WEB_PORT="${WEB_PORT:-3000}"
 AI_PORT="${AI_PORT:-8000}"
 NGROK_DOMAIN="${NGROK_DOMAIN:-handball-fiddle-chooser.ngrok-free.dev}"
 
-# Couleurs (avec fallback si terminal non-couleur)
+# ── Couleurs ──────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then
   RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'
-  BLUE=$'\033[34m'; CYAN=$'\033[36m'; RESET=$'\033[0m'; BOLD=$'\033[1m'
+  BLUE=$'\033[34m'; CYAN=$'\033[36m'; RESET=$'\033[0m'; BOLD=$'\033[1m'; DIM=$'\033[2m'
 else
-  RED=""; GREEN=""; YELLOW=""; BLUE=""; CYAN=""; RESET=""; BOLD=""
+  RED=""; GREEN=""; YELLOW=""; BLUE=""; CYAN=""; RESET=""; BOLD=""; DIM=""
 fi
 
-# ---------------------------- Helpers ----------------------------------------
-
-log()   { echo "${CYAN}[start-dev]${RESET} $*"; }
-ok()    { echo "${GREEN}[start-dev] ✓${RESET} $*"; }
-warn()  { echo "${YELLOW}[start-dev] ⚠${RESET} $*"; }
-error() { echo "${RED}[start-dev] ✗${RESET} $*" >&2; }
+# ── Helpers ───────────────────────────────────────────────────────────────────
+log()   { printf '%s[start-dev]%s %s\n'      "$CYAN"   "$RESET" "$*"; }
+ok()    { printf '%s[start-dev] ✓%s %s\n'   "$GREEN"  "$RESET" "$*"; }
+warn()  { printf '%s[start-dev] ⚠%s  %s\n' "$YELLOW" "$RESET" "$*"; }
+error() { printf '%s[start-dev] ✗%s %s\n'   "$RED"    "$RESET" "$*" >&2; }
 
 require() {
   if ! command -v "$1" >/dev/null 2>&1; then
-    error "Commande manquante : $1"
-    error "Installe-la puis relance le script."
+    error "Commande manquante : '$1' — installe-la d'abord."
     exit 1
   fi
 }
 
-# ---------------------------- Parse args -------------------------------------
+check_port() {
+  local port=$1 name=$2
+  if lsof -i ":$port" -sTCP:LISTEN -t >/dev/null 2>&1; then
+    error "Port $port déjà occupé — impossible de démarrer $name."
+    error "  → kill \$(lsof -t -i:$port)"
+    exit 1
+  fi
+}
 
+# Attend qu'une URL HTTP réponde (code 2xx ou 3xx).
+# Affiche un spinner animé pendant l'attente.
+wait_for_http() {
+  local name=$1 url=$2 max=${3:-90}
+  local i=0
+  local spin=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+
+  while ! curl -sf --max-time 2 "$url" >/dev/null 2>&1; do
+    if [ $i -ge $max ]; then
+      echo ""
+      error "$name non disponible après ${max}s."
+      error "  Vérifie les logs ci-dessus pour trouver l'erreur."
+      return 1
+    fi
+    printf '\r%s  %s Attente de %-12s (%ds)%s' \
+      "$DIM" "${spin[$((i % 10))]}" "$name" "$i" "$RESET"
+    sleep 1
+    i=$((i + 1))
+  done
+  printf '\r%s  ✓ %-12s prêt (%ds)%s\n' "$GREEN" "$name" "$i" "$RESET"
+}
+
+# ── Parse args ────────────────────────────────────────────────────────────────
 WITH_TUNNEL=0
+WITH_SEED=0
 for arg in "$@"; do
   case "$arg" in
     --tunnel|-t) WITH_TUNNEL=1 ;;
+    --seed|-s)   WITH_SEED=1 ;;
     --help|-h)
-      grep '^#' "$0" | sed 's/^# \?//'
+      sed -n 's/^# \?//p' "$0" | head -12
       exit 0
       ;;
     *) error "Argument inconnu : $arg"; exit 1 ;;
   esac
 done
 
-# ---------------------------- Prérequis --------------------------------------
-
+# ── Prérequis ─────────────────────────────────────────────────────────────────
 log "Vérification des prérequis..."
 require pnpm
-require python3
 require node
-if [ "$WITH_TUNNEL" -eq 1 ]; then
-  require ngrok
-fi
+require curl
+[ "$WITH_TUNNEL" -eq 1 ] && require ngrok
 
-# Détecter la racine du projet (le script doit être à la racine)
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 
 if [ ! -d "web" ] || [ ! -d "ai" ]; then
-  error "Ce script doit être lancé à la racine du repo (dossiers 'web/' et 'ai/' attendus)."
+  error "Dossiers 'web/' et 'ai/' introuvables — lance depuis la racine du repo."
   exit 1
 fi
 
-# Charger web/.env.local si présent
+# ── Variables d'environnement ─────────────────────────────────────────────────
 if [ -f "web/.env.local" ]; then
-  log "Chargement de web/.env.local..."
   set -a
   # shellcheck disable=SC1091
   source web/.env.local
   set +a
+  ok ".env.local chargé"
+else
+  warn "web/.env.local absent — certaines fonctionnalités ne fonctionneront pas."
 fi
 
-# Vérifier le venv Python (seulement si le service AI est prêt)
+[ -z "${OPENAI_API_KEY:-}" ] && warn "OPENAI_API_KEY absent — le service AI sera en mode dégradé (503)."
+
+# ── Vérification des ports ────────────────────────────────────────────────────
+check_port "$WEB_PORT" "Next.js"
+check_port "$AI_PORT"  "FastAPI"
+
+# ── Venv Python ───────────────────────────────────────────────────────────────
 AI_READY=0
 if [ -f "ai/main.py" ]; then
   AI_READY=1
-  if [ ! -d "ai/.venv" ]; then
-    warn "Le venv Python n'existe pas (ai/.venv). Création..."
-    (cd ai && python3 -m venv .venv && source .venv/bin/activate && pip install -e .)
-    ok "venv créé et dépendances installées"
-  fi
-else
-  warn "ai/main.py absent — service AI ignoré (Phase 1 only)"
-fi
 
-# Vérifier node_modules
-if [ ! -d "web/node_modules" ]; then
-  warn "node_modules absent dans web/. Installation..."
-  (cd web && pnpm install)
-  ok "Dépendances web installées"
-fi
-
-# Vérifier que la DB Prisma est initialisée
-if [ ! -f "web/prisma/dev.db" ]; then
-  warn "Base de données absente. Migration initiale..."
-  (cd web && pnpm dlx prisma migrate dev --name init || true)
-fi
-
-# ---------------------------- Cleanup on exit --------------------------------
-
-PIDS=()
-
-cleanup() {
-  echo ""
-  log "Arrêt des processus..."
-  for pid in "${PIDS[@]:-}"; do
-    if kill -0 "$pid" 2>/dev/null; then
-      kill "$pid" 2>/dev/null || true
-      wait "$pid" 2>/dev/null || true
+  # Auto-détection de la version Python (préfère 3.12, accepte 3.11–3.14)
+  PYTHON_BIN=""
+  for py in python3.12 python3.11 python3.13 python3.14 python3; do
+    if command -v "$py" >/dev/null 2>&1; then
+      PYTHON_BIN="$py"
+      break
     fi
   done
-  ok "Tout est arrêté. À plus."
-  exit 0
-}
+  if [ -z "$PYTHON_BIN" ]; then
+    error "Aucune installation Python 3 trouvée."
+    exit 1
+  fi
 
+  if [ ! -d "ai/.venv" ]; then
+    warn "Création du venv Python avec $PYTHON_BIN..."
+    (cd ai && "$PYTHON_BIN" -m venv .venv && source .venv/bin/activate && pip install -e . -q)
+    ok "venv créé"
+  fi
+else
+  warn "ai/main.py absent — service AI ignoré."
+fi
+
+# ── Dépendances Node ──────────────────────────────────────────────────────────
+if [ ! -d "web/node_modules" ]; then
+  warn "Installation des dépendances Node..."
+  (cd web && pnpm install --silent)
+  ok "node_modules installé"
+fi
+
+# ── Base de données ───────────────────────────────────────────────────────────
+if [ ! -f "web/prisma/dev.db" ]; then
+  warn "Migration initiale de la DB Prisma..."
+  (cd web && pnpm dlx prisma migrate dev --name init 2>&1 | grep -E 'error|warn|✔' || true)
+  ok "DB initialisée"
+fi
+
+# ── Cleanup ───────────────────────────────────────────────────────────────────
+cleanup() {
+  trap '' INT TERM EXIT
+  echo ""
+  log "Arrêt des processus..."
+  # Kill tous les jobs background du script courant
+  # shellcheck disable=SC2046
+  kill $(jobs -p) 2>/dev/null || true
+  wait 2>/dev/null || true
+  ok "Stack arrêtée."
+}
 trap cleanup INT TERM EXIT
 
-# ---------------------------- Lancement --------------------------------------
+# ── Lancement ─────────────────────────────────────────────────────────────────
+printf '\n%s%s  ⚖  Code Tribunal — Dev Stack%s\n\n' "$BOLD" "$CYAN" "$RESET"
 
-log ""
-log "${BOLD}Démarrage de la stack [NOM_DU_PROJET]${RESET}"
-log "  Web      → http://localhost:$WEB_PORT"
-log "  AI       → http://localhost:$AI_PORT"
-if [ "$WITH_TUNNEL" -eq 1 ]; then
-  log "  Tunnel   → https://$NGROK_DOMAIN"
-fi
-log ""
-
-# 1) Service Python (FastAPI) — seulement si prêt
+# Service Python (FastAPI)
 if [ "$AI_READY" -eq 1 ]; then
-  log "Lancement du service AI (FastAPI) sur le port $AI_PORT..."
   (
     cd ai
     # shellcheck disable=SC1091
     source .venv/bin/activate
-    exec uvicorn main:app \
-      --reload \
-      --port "$AI_PORT" \
-      --reload-include "*.md" \
-      --log-level info 2>&1 | sed "s/^/${BLUE}[ai]${RESET}    /"
-  ) &
-  PIDS+=($!)
+    uvicorn main:app --reload --port "$AI_PORT" --reload-include "*.md" --log-level warning
+  ) 2>&1 | sed "s/^/${BLUE}[ai]${RESET}     /" &
 fi
 
-# 2) Next.js (web)
-log "Lancement de Next.js sur le port $WEB_PORT..."
+# Next.js
 (
   cd web
-  exec pnpm dev --port "$WEB_PORT" 2>&1 | sed "s/^/${GREEN}[web]${RESET}   /"
-) &
-PIDS+=($!)
+  pnpm dev --port "$WEB_PORT"
+) 2>&1 | sed "s/^/${GREEN}[web]${RESET}    /" &
 
-# 3) ngrok (tunnel) — optionnel
+# ngrok (optionnel)
 if [ "$WITH_TUNNEL" -eq 1 ]; then
-  log "Lancement de ngrok sur le domaine $NGROK_DOMAIN..."
-  (
-    exec ngrok http --url="$NGROK_DOMAIN" "$WEB_PORT" --log=stdout 2>&1 \
-      | sed "s/^/${YELLOW}[ngrok]${RESET} /"
-  ) &
-  PIDS+=($!)
+  ngrok http --url="$NGROK_DOMAIN" "$WEB_PORT" --log=stdout 2>&1 \
+    | sed "s/^/${YELLOW}[ngrok]${RESET}  /" &
 fi
 
-log ""
-ok "Tous les services tournent. Ctrl+C pour arrêter."
-log ""
+# ── Health checks ─────────────────────────────────────────────────────────────
+echo ""
+log "En attente que les services démarrent..."
+echo ""
 
-# Attendre que tous les processus finissent (ou Ctrl+C)
+# FastAPI : /docs répond toujours 200 (pas besoin de la clé OpenAI)
+[ "$AI_READY" -eq 1 ] && wait_for_http "FastAPI" "http://localhost:$AI_PORT/docs" 60
+
+# Next.js : attend que la page principale réponde
+wait_for_http "Next.js" "http://localhost:$WEB_PORT" 120
+
+# ── Bannière READY ────────────────────────────────────────────────────────────
+line="──────────────────────────────────────────────────"
+printf '\n%s┌%s┐%s\n' "$GREEN" "$line" "$RESET"
+printf '%s│%s  ✓  Stack prête — tous les services répondent    %s│%s\n' "$GREEN" "$RESET" "$GREEN" "$RESET"
+printf '%s├%s┤%s\n' "$GREEN" "$line" "$RESET"
+printf '%s│%s  🌐 Web       http://localhost:%-4s               %s│%s\n' "$GREEN" "$RESET" "$WEB_PORT"   "$GREEN" "$RESET"
+printf '%s│%s  🤖 AI docs   http://localhost:%-4s/docs          %s│%s\n' "$GREEN" "$RESET" "$AI_PORT"    "$GREEN" "$RESET"
+printf '%s│%s  🔬 AI health http://localhost:%-4s/healthz       %s│%s\n' "$GREEN" "$RESET" "$AI_PORT"    "$GREEN" "$RESET"
+if [ "$WITH_TUNNEL" -eq 1 ]; then
+  printf '%s│%s  🔗 Tunnel    https://%-27s  %s│%s\n' "$GREEN" "$RESET" "$NGROK_DOMAIN" "$GREEN" "$RESET"
+fi
+printf '%s└%s┘%s\n' "$GREEN" "$line" "$RESET"
+echo ""
+
+if [ "$WITH_SEED" -eq 0 ]; then
+  printf '%s  Tip:%s Pour tester sans GitHub : ./start-dev.sh --seed\n\n' "$DIM" "$RESET"
+fi
+
+# ── Seed optionnel ────────────────────────────────────────────────────────────
+if [ "$WITH_SEED" -eq 1 ]; then
+  log "Insertion des données de test..."
+  (cd web && node scripts/seed-test.mjs) || warn "Seed échoué — stack toujours active, retry : node web/scripts/seed-test.mjs"
+  echo ""
+fi
+
+ok "Ctrl+C pour tout arrêter."
+echo ""
+
 wait
