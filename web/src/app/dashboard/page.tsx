@@ -10,6 +10,8 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
   awaiting_proof: { bg: "#fef9c3", color: "#854d0e", label: "Quiz requis" },
   approved: { bg: "#dcfce7", color: "#166534", label: "Approuvé ✓" },
   rejected: { bg: "#fee2e2", color: "#991b1b", label: "Rejeté" },
+  closed: { bg: "#f3f4f6", color: "#6b7280", label: "Fermée" },
+  merged: { bg: "#ede9fe", color: "#6d28d9", label: "Mergée" },
 };
 
 export default async function DashboardPage() {

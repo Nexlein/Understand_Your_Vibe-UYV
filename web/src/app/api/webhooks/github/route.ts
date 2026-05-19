@@ -89,6 +89,66 @@ async function handlePREvent(data: PREventData): Promise<void> {
   });
 }
 
+type OctokitInstance = Awaited<ReturnType<typeof githubApp.getInstallationOctokit>>;
+
+// ~25 000 tokens max for the diff — leaves plenty of room for system prompts + schemas
+const MAX_DIFF_BYTES = 100_000;
+
+function truncateDiff(diff: string): string {
+  if (diff.length <= MAX_DIFF_BYTES) return diff;
+  // Cut at the last complete line within the limit
+  const cut = diff.lastIndexOf("\n", MAX_DIFF_BYTES);
+  return diff.slice(0, cut > 0 ? cut : MAX_DIFF_BYTES) +
+    "\n\n# ... diff truncated — showing first 100 KB out of a larger changeset\n";
+}
+
+async function fetchDiff(
+  octokit: OctokitInstance,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<string> {
+  try {
+    const res = await octokit.request(
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}",
+      { owner, repo, pull_number: prNumber, headers: { accept: "application/vnd.github.diff" } }
+    );
+    return truncateDiff(res.data as unknown as string);
+  } catch (err: unknown) {
+    if ((err as { status?: number }).status !== 406) throw err;
+  }
+
+  // Fallback for PRs > 300 files: reconstruct diff from files API
+  const MAX_FILES = 100;
+  type GHFile = { filename: string; status: string; patch?: string };
+  const filesRes = await octokit.request(
+    "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+    { owner, repo, pull_number: prNumber, per_page: MAX_FILES, page: 1 }
+  );
+  const files = filesRes.data as GHFile[];
+
+  const parts: string[] = [
+    `# Large PR — showing first ${MAX_FILES} files (original exceeds 300 files)\n\n`,
+  ];
+  let bytes = parts[0].length;
+
+  for (const file of files) {
+    const chunk =
+      `diff --git a/${file.filename} b/${file.filename}\n` +
+      `--- a/${file.filename}\n+++ b/${file.filename}\n` +
+      (file.patch ?? "(binary or too large)\n") + "\n";
+
+    if (bytes + chunk.length > MAX_DIFF_BYTES) {
+      parts.push(`\n# ... truncated at 100 KB\n`);
+      break;
+    }
+    parts.push(chunk);
+    bytes += chunk.length;
+  }
+
+  return parts.join("");
+}
+
 async function runTrialFlow(params: {
   prDbId: number;
   installationId: number;
@@ -102,16 +162,7 @@ async function runTrialFlow(params: {
     const octokit = await githubApp.getInstallationOctokit(installationId);
     const [owner, repo] = repoFullName.split("/") as [string, string];
 
-    const diffResponse = await octokit.request(
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}",
-      {
-        owner,
-        repo,
-        pull_number: prNumber,
-        headers: { accept: "application/vnd.github.diff" },
-      }
-    );
-    const diff = diffResponse.data as unknown as string;
+    const diff = await fetchDiff(octokit, owner, repo, prNumber);
     const language = detectLanguage(diff);
 
     const trial = await runTrial({ diff, repoFullName, prNumber, language });
@@ -198,4 +249,45 @@ githubApp.webhooks.on("pull_request.synchronize", async ({ payload }) => {
     title: payload.pull_request.title,
     authorLogin: payload.pull_request.user?.login ?? "unknown",
   });
+});
+
+githubApp.webhooks.on("pull_request.closed", async ({ payload }) => {
+  if (!payload.installation) return;
+
+  const repoFullName = payload.repository.full_name;
+  const prNumber = payload.pull_request.number;
+  const headSha = payload.pull_request.head.sha;
+  const merged = payload.pull_request.merged ?? false;
+  const newStatus = merged ? "merged" : "closed";
+
+  try {
+    const pr = await db.pullRequest.findFirst({
+      where: { repoFullName, prNumber },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!pr) return;
+
+    await db.pullRequest.update({
+      where: { id: pr.id },
+      data: { status: newStatus },
+    });
+
+    // Only update commit status if PR wasn't already approved
+    if (pr.status !== "approved") {
+      await setCommitStatus({
+        installationId: payload.installation.id,
+        repoFullName,
+        sha: headSha,
+        state: "failure",
+        description: merged
+          ? "Code Tribunal: merged without proof of understanding"
+          : "Code Tribunal: PR closed — understanding not verified",
+      });
+    }
+
+    console.log(`[webhook] PR #${prNumber} on ${repoFullName} marked as ${newStatus}`);
+  } catch (err) {
+    console.error(`[webhook] Failed to handle PR close for #${prNumber}:`, err);
+  }
 });
