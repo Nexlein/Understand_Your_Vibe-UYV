@@ -1,0 +1,30 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Build / distribution
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Tests / coverage
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Env files (au cas où quelqu'un crée un .env local ici)
+.env
+.env.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
