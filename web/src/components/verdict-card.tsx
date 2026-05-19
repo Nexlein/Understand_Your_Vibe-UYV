@@ -2,9 +2,9 @@ import { RiskScore } from "./risk-score";
 import type { VerdictOutput } from "@/lib/schemas";
 
 const REC_LABEL: Record<string, string> = {
-  approve: "✓ Approuvé",
-  request_changes: "⚠ Modifications requises",
-  needs_understanding_proof: "📋 Preuve de compréhension requise",
+  approve: "✓ Approved",
+  request_changes: "⚠ Changes requested",
+  needs_understanding_proof: "📋 Proof of understanding required",
 };
 
 export function VerdictCard({ verdict }: { verdict: VerdictOutput }) {
@@ -39,7 +39,7 @@ export function VerdictCard({ verdict }: { verdict: VerdictOutput }) {
               marginBottom: "0.375rem",
             }}
           >
-            Verdict du tribunal
+            Court verdict
           </div>
           <div
             style={{
@@ -62,7 +62,7 @@ export function VerdictCard({ verdict }: { verdict: VerdictOutput }) {
               marginBottom: "0.5rem",
             }}
           >
-            Score de risque
+            Risk score
           </div>
           <RiskScore value={verdict.risk_score} />
         </div>

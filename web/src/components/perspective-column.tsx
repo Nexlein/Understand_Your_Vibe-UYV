@@ -8,10 +8,10 @@ const SEVERITY_COLOR: Record<string, string> = {
 };
 
 const SEVERITY_LABEL: Record<string, string> = {
-  critical: "🔴 Critique",
-  high: "🟠 Élevé",
-  medium: "🟡 Moyen",
-  low: "🟢 Faible",
+  critical: "🔴 Critical",
+  high: "🟠 High",
+  medium: "🟡 Medium",
+  low: "🟢 Low",
 };
 
 type DefenseProps = { variant: "defense" } & DefenseOutput;
@@ -27,7 +27,7 @@ export function PerspectiveColumn(props: Props) {
   const titleColor = isDefense
     ? "var(--ct-navy, #1e3a5f)"
     : "var(--ct-bordeaux, #7a1e32)";
-  const badge = isDefense ? "🛡️ Défense" : "⚔️ Accusation";
+  const badge = isDefense ? "🛡️ Defense" : "⚔️ Prosecution";
 
   return (
     <div
@@ -142,7 +142,7 @@ export function PerspectiveColumn(props: Props) {
                 paddingTop: "0.6rem",
               }}
             >
-              <strong>Vecteurs d'attaque :</strong> {props.attack_vectors.join(", ")}
+              <strong>Attack vectors:</strong> {props.attack_vectors.join(", ")}
             </div>
           )}
           <p
