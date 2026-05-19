@@ -26,10 +26,11 @@ Return a JSON object matching this structure exactly:
 - `concerns`: array of concern objects, each with:
   - `title`: short title (5–10 words)
   - `severity`: one of "low" | "medium" | "high" | "critical"
-  - `explanation`: 2–3 sentences describing the risk and its consequences
+  - `explanation`: 1–2 sentences describing the risk and its consequences
   - `line_references`: list of line references from the diff (e.g. ["L23", "L45-L50"])
-- `attack_vectors`: list of strings, each describing a specific failure scenario or exploit path
-- `prosecution_summary`: 2–3 sentence closing statement of the prosecution's case
+  - `file_paths`: list of file paths from project root (e.g. ["src/allocator.c", "include/arena.h"])
+- `attack_vectors`: list of strings, each a concise failure scenario or exploit path (1 sentence max each)
+- `prosecution_summary`: 1–2 sentence closing statement of the prosecution's case
 
 ## Severity guide
 
@@ -40,7 +41,9 @@ Return a JSON object matching this structure exactly:
 
 ## Constraints
 
-- Only reference lines that actually appear in the diff
+- Only reference lines and file paths that actually appear in the diff
+- Extract file paths from diff headers (e.g. `diff --git a/src/foo.c b/src/foo.c` or `+++ b/path/to/file.py`)
 - Do not invent concerns — only flag real issues visible in the diff
+- Be concise: prefer precision over elaboration
 - Respond in English
 - Be specific: name the exact variable, function, or pattern causing the concern

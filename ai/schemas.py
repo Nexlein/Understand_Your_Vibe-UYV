@@ -9,6 +9,7 @@ class Strength(BaseModel):
     title: str
     explanation: str
     line_references: list[str]
+    file_paths: list[str]  # e.g. ["src/allocator.c", "include/arena.h"]
 
 
 class DefenseOutput(BaseModel):
@@ -25,6 +26,7 @@ class Concern(BaseModel):
     severity: Literal["low", "medium", "high", "critical"]
     explanation: str
     line_references: list[str]
+    file_paths: list[str]  # e.g. ["src/allocator.c", "include/arena.h"]
 
 
 class ProsecutionOutput(BaseModel):
