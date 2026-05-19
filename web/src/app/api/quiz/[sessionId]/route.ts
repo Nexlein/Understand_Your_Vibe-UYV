@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { runEvaluation } from "@/lib/ai-service";
 import { setCommitStatus } from "@/lib/github/status";
+import { postQuizResultComment } from "@/lib/github/comment";
 import { QuestionsOutputSchema, PerQuestionScoreSchema } from "@/lib/schemas";
 
 export const dynamic = "force-dynamic";
@@ -106,6 +107,17 @@ export async function POST(
       description: `Code Tribunal: understanding verified (${evaluation.understanding_score}/100)`,
     });
   }
+
+  // Post result comment on PR — fire-and-forget, ne bloque pas la réponse
+  void postQuizResultComment({
+    installationId: session.pullRequest.installationId,
+    repoFullName: session.pullRequest.repoFullName,
+    prNumber: session.pullRequest.prNumber,
+    authorLogin: session.pullRequest.authorLogin,
+    evaluation,
+  }).catch((err: unknown) =>
+    console.error("[quiz] Failed to post result comment:", err)
+  );
 
   return NextResponse.json(evaluation);
 }
